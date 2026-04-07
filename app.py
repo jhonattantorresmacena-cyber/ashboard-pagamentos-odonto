@@ -5,8 +5,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # 1. Configuração de Estilo Premium (Cores FASICLIN)
-# Substitua o título por uma imagem
-st.image("Chttps://github.com/jhonattantorresmacena-cyber/dashboard-fasiclin/blob/main/assets/image_1.png", width=300)
+st.set_page_config(page_title="FASICLIN - Gestão Premium", layout="wide")
 
 st.markdown("""
     <style>
@@ -63,7 +62,8 @@ try:
         df = df[df['PROCEDIMENTO'] == proc_sel]
 
     # --- HEADER ---
-    st.title("🏥 FASICLIN - Gestão Premium")
+    # Substitua o título por uma imagem
+st.image("https://github.com/jhonattantorresmacena-cyber/dashboard-fasiclin/blob/main/assets/image_1.png", width=300)
     st.caption(f"Sincronizado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
     # --- INDICADORES ---
