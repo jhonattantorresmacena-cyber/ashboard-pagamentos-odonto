@@ -5,7 +5,8 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # 1. Configuração de Estilo Premium (Cores FASICLIN)
-st.set_page_config(page_title="FASICLIN - Gestão Premium", layout="wide")
+# Substitua o título por uma imagem
+st.image("Chttps://github.com/jhonattantorresmacena-cyber/dashboard-fasiclin/blob/main/assets/image_1.png", width=300)
 
 st.markdown("""
     <style>
