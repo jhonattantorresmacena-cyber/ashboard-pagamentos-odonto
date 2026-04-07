@@ -19,7 +19,6 @@ st.markdown("""
     }
     div[data-testid="stMetricValue"] > div { color: #299947 !important; font-weight: 600; }
     div[data-testid="stMetricLabel"] > div { color: #a395a8 !important; text-transform: uppercase; font-size: 0.8rem; }
-    h1, h2, h3 { color: #333333; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -30,25 +29,29 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/1M2TGuEkzyOXgcxGK9ujYDknIgjv
 def load_data():
     df = pd.read_csv(SHEET_URL)
     df.columns = [c.strip().upper() for c in df.columns]
-    
-    # Tratamento de Datas
     if 'DATA' in df.columns:
         df['DATA'] = pd.to_datetime(df['DATA'], dayfirst=True, errors='coerce')
-    
-    # Tratamento Financeiro
     col_finan = 'VALOR TOTAL' if 'VALOR TOTAL' in df.columns else 'VALOR'
     if col_finan in df.columns:
         df[col_finan] = df[col_finan].replace(r'[R\$\.\,]', '', regex=True).fillna(0)
         df[col_finan] = pd.to_numeric(df[col_finan], errors='coerce') / 100
-        
     return df, col_finan
 
 try:
     df, col_finan = load_data()
 
+    # --- HEADER COM LOGO ---
+    # Link direto (RAW) para a imagem no seu GitHub
+    LOGO_URL = "https://raw.githubusercontent.com/jhonattantorresmacena-cyber/dashboard-fasiclin/main/assets/image_1.png"
+    
+    col_logo, col_info = st.columns([1, 4])
+    with col_logo:
+        st.image(LOGO_URL, width=200)
+    with col_info:
+        st.caption(f"Sincronizado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+
     # --- SIDEBAR (Filtros) ---
     st.sidebar.header("🎯 Filtros de Gestão")
-    
     if 'DATA' in df.columns:
         df['MES_ANO'] = df['DATA'].dt.strftime('%B %Y')
         meses = ["Todos os Meses"] + sorted(df['MES_ANO'].dropna().unique().tolist())
@@ -61,16 +64,10 @@ try:
     if proc_sel != "Todos os Procedimentos":
         df = df[df['PROCEDIMENTO'] == proc_sel]
 
-    # --- HEADER ---
-    # Substitua o título por uma imagem
-st.image("https://github.com/jhonattantorresmacena-cyber/dashboard-fasiclin/blob/main/assets/image_1.png", width=300)
-    st.caption(f"Sincronizado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
-
     # --- INDICADORES ---
     t_qtd = df['QUANTIDADE'].sum() if 'QUANTIDADE' in df.columns else 0
     t_finan = df[col_finan].sum()
     dias_ativos = df['DATA'].nunique() if 'DATA' in df.columns else 1
-    # Meta de 40 por dia conforme o HTML original
     eficiencia = (t_qtd / (dias_ativos * 40)) if dias_ativos > 0 else 0
 
     m1, m2, m3 = st.columns(3)
@@ -81,7 +78,6 @@ st.image("https://github.com/jhonattantorresmacena-cyber/dashboard-fasiclin/blob
     st.divider()
 
     # --- GRÁFICOS ---
-    # 1. Meta Diária
     st.subheader("📈 Tendência de Atingimento de Meta Diária")
     if 'DATA' in df.columns:
         df_meta = df.groupby('DATA')['QUANTIDADE'].sum().reset_index()
@@ -100,12 +96,6 @@ st.image("https://github.com/jhonattantorresmacena-cyber/dashboard-fasiclin/blob
         st.subheader("🏢 Distribuição por Clínica")
         fig_cli = px.bar(df.groupby('CLINICA')['QUANTIDADE'].sum().reset_index(), x='CLINICA', y='QUANTIDADE', color_discrete_sequence=['#299947'])
         st.plotly_chart(fig_cli, use_container_width=True)
-
-    # 2. Ranking Procedimentos
-    st.subheader("🏆 Ranking de Receita por Procedimento")
-    df_rank = df.groupby('PROCEDIMENTO')[col_finan].sum().sort_values(ascending=True).reset_index()
-    fig_rank = px.bar(df_rank, x=col_finan, y='PROCEDIMENTO', orientation='h', color_discrete_sequence=['#299947'])
-    st.plotly_chart(fig_rank, use_container_width=True)
 
 except Exception as e:
     st.error(f"Erro ao carregar dados: {e}")
