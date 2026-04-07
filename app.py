@@ -2,51 +2,49 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Dashboard de Fiscalização", layout="wide")
+st.set_page_config(page_title="Fiscalização Odonto", layout="wide")
 
 # URL da planilha
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1M2TGuEkzyOXgcxGK9ujYDknIgjvWlveHHsSpqnvv5j4/export?format=csv&gid=1575732509"
 
-@st.cache_data(ttl=5) # Atualiza quase em tempo real
+@st.cache_data(ttl=5)
 def load_data():
-    # Lê a planilha pulando linhas vazias e garantindo que o cabeçalho seja a primeira linha com dados
     df = pd.read_csv(SHEET_URL)
+    df.columns = [c.strip() for c in df.columns]
     
-    # Tenta limpar a coluna de valor se ela existir, independente de maiúsculas/minúsculas
-    df.columns = [c.strip() for c in df.columns] # Remove espaços extras nos nomes
-    
-    col_valor = next((c for c in df.columns if 'valor' in c.lower()), None)
-    
-    if col_valor:
-        df[col_valor] = df[col_valor].replace(r'[R\$\.\,]', '', regex=True).fillna(0)
-        df[col_valor] = pd.to_numeric(df[col_valor], errors='coerce') / 100
-        
-    return df, col_valor
+    # Tratamento da coluna VALOR TOTAL
+    if 'VALOR TOTAL' in df.columns:
+        df['VALOR TOTAL'] = df['VALOR TOTAL'].replace(r'[R\$\.\,]', '', regex=True).fillna(0)
+        df['VALOR TOTAL'] = pd.to_numeric(df['VALOR TOTAL'], errors='coerce') / 100
+    return df
 
 try:
-    df, col_valor = load_data()
-
-    st.title("📊 Painel de Controle - Fiscalização de Pagamentos")
+    df = load_data()
+    st.title("📊 Painel de Fiscalização - Odontologia")
     
-    # Exibe métricas apenas se encontrar os dados
-    if not df.empty:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric("Total de Linhas", len(df))
-            
-        if col_valor:
-            with col2:
-                st.metric("Valor Total", f"R$ {df[col_valor].sum():,.2f}")
-        
-        st.divider()
-        
-        # Mostra a tabela para você conferir se os dados estão entrando
-        st.subheader("Dados da Planilha")
-        st.dataframe(df)
-        
-    else:
-        st.warning("A planilha parece estar vazia ou o link está incorreto.")
+    # Métricas no topo
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total de Atendimentos", len(df))
+    c2.metric("Faturamento Total", f"R$ {df['VALOR TOTAL'].sum():,.2f}")
+    c3.metric("Qtd. Procedimentos", int(df['QUANTIDADE'].sum()) if 'QUANTIDADE' in df.columns else 0)
+
+    st.divider()
+
+    # Gráficos Dinâmicos
+    col_left, col_right = st.columns(2)
+
+    with col_left:
+        st.subheader("Produção por Procedimento")
+        fig_proc = px.bar(df, x='QUANTIDADE', y='PROCEDIMENTO', orientation='h', color='CLINICA', title="Quantidade por Tipo")
+        st.plotly_chart(fig_proc, use_container_width=True)
+
+    with col_right:
+        st.subheader("Distribuição por Turma")
+        fig_pie = px.pie(df, values='VALOR TOTAL', names='TURMA', hole=0.4, title="Faturamento por Semestre")
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    st.subheader("Visualização dos Dados")
+    st.dataframe(df, use_container_width=True)
 
 except Exception as e:
-    st.error(f"Erro inesperado: {e}")
+    st.error(f"Erro ao processar gráficos: {e}")
