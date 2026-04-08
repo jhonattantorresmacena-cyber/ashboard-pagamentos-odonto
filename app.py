@@ -192,6 +192,11 @@ try:
     fig_rank.update_traces(texttemplate='Qtd: %{text}', textposition='outside')
     fig_rank.update_layout(xaxis_title="Valor Total (R$)", yaxis_title=None, height=500, margin=dict(l=200))
     st.plotly_chart(fig_rank, use_container_width=True)
+ # --- TABELA DE DETALHES (Drill-down) ---
+    with st.expander("🔍 Detalhamento dos Dados e Exportação"):
+        st.dataframe(df, use_container_width=True)
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Baixar Relatório CSV", data=csv, file_name="relatorio_fasiclin.csv", mime="text/csv")
 
 except Exception as e:
     st.error(f"Erro ao carregar dados: {e}")
