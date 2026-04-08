@@ -3,19 +3,17 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
-import locale
 
-# 1. Configuração de Localidade (Português Brasil)
-try:
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-except:
-    try:
-        locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252')
-    except:
-        st.warning("Não foi possível carregar o locale pt_BR. As datas podem aparecer em inglês.")
-
-# 2. Configuração de Estilo Premium
+# 1. Configuração de Estilo Premium
 st.set_page_config(page_title="FASICLIN - Gestão Premium", layout="wide")
+
+# Dicionário para tradução manual dos meses (Garante o funcionamento sem erro de locale)
+MESES_TRADUCAO = {
+    'January': 'Janeiro', 'February': 'Fevereiro', 'March': 'Março',
+    'April': 'Abril', 'May': 'Maio', 'June': 'Junho',
+    'July': 'Julho', 'August': 'Agosto', 'September': 'Setembro',
+    'October': 'Outubro', 'November': 'Novembro', 'December': 'Dezembro'
+}
 
 st.markdown("""
     <style>
@@ -31,7 +29,7 @@ st.markdown("""
         border: 1px solid #eaeaea;
     }
 
-    /* Estilização do Selectbox (Cinza arredondado) */
+    /* Estilização do Selectbox (Cinza arredondado igual à imagem) */
     div[data-baseweb="select"] > div {
         background-color: #f1f3f4 !important;
         border-radius: 25px !important;
@@ -56,11 +54,16 @@ st.markdown("""
         background-color: white;
         color: #5f6368;
         padding: 5px 20px;
+        width: 100%;
+    }
+    .stButton > button:hover {
+        border-color: #299947;
+        color: #299947;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Conexão com a Planilha
+# 2. Conexão com a Planilha
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1M2TGuEkzyOXgcxGK9ujYDknIgjvWlveHHsSpqnvv5j4/export?format=csv&gid=1575732509"
 
 @st.cache_data(ttl=5)
@@ -84,80 +87,88 @@ try:
     
     col_logo, col_info = st.columns([1, 4])
     with col_logo:
-        st.image(LOGO_URL, width=200)
+        st.image(LOGO_URL, width=200) [cite: 4]
     with col_info:
-        st.caption(f"Sincronizado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+        st.caption(f"Sincronizado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}") [cite: 4]
 
-    # --- FILTROS (Novo Formato) ---
+    # --- FILTROS ---
     st.markdown('<div class="filter-card">', unsafe_allow_html=True)
     
     # Campo Procedimento
-    c_label, c_select = st.columns([0.2, 0.8])
+    c_label, c_select = st.columns([0.15, 0.85])
     with c_label:
         st.markdown("<p style='margin-top:10px; font-weight:bold;'>🎯 Procedimento:</p>", unsafe_allow_html=True)
     with c_select:
-        procs = ["-- Todos os Procedimentos --"] + sorted(df['PROCEDIMENTO'].dropna().unique().tolist())
-        proc_sel = st.selectbox("Procedimento", procs, label_visibility="collapsed")
+        procs = ["-- Todos os Procedimentos --"] + sorted(df['PROCEDIMENTO'].dropna().unique().tolist()) [cite: 5]
+        proc_sel = st.selectbox("Procedimento", procs, label_visibility="collapsed") [cite: 5]
     
     st.markdown("<hr style='margin: 15px 0; opacity: 0.1;'>", unsafe_allow_html=True)
 
-    # Filtro de Meses (Pílulas com Locale aplicado)
+    # Filtro de Meses (Tradução Manual)
     if 'DATA' in df.columns:
-        df['MES_ANO'] = df['DATA'].dt.strftime('%B de %Y')
-        meses_unicos = sorted(df['MES_ANO'].dropna().unique().tolist(), key=lambda x: datetime.strptime(x, '%B de %Y'))
+        # Cria nome do mês em inglês e traduz usando o dicionário
+        df['MES_NOME_EN'] = df['DATA'].dt.strftime('%B')
+        df['MES_TRADUZIDO'] = df['MES_NOME_EN'].map(MESES_TRADUCAO)
+        df['MES_ANO'] = df['MES_TRADUZIDO'] + " de " + df['DATA'].dt.strftime('%Y')
         
-        cols_mes = st.columns(len(meses_unicos) + 1)
-        mes_sel = "Todos os Meses"
+        meses_unicos = df[['MES_ANO', 'DATA']].dropna().sort_values('DATA')
+        meses_lista = meses_unicos['MES_ANO'].unique().tolist()
         
-        if cols_mes[0].button("Todos os Meses", key="btn_todos"):
-            mes_sel = "Todos os Meses"
+        cols_mes = st.columns(len(meses_lista) + 1)
         
-        for i, mes in enumerate(meses_unicos):
-            if cols_mes[i+1].button(mes.capitalize(), key=f"btn_{i}"):
-                mes_sel = mes
+        # Lógica para manter o estado da seleção
+        if "mes_selecionado" not in st.session_state:
+            st.session_state.mes_selecionado = "Todos os Meses"
 
-        # Aplicando filtros ao DF
-        if mes_sel != "Todos os Meses":
-            df = df[df['MES_ANO'] == mes_sel]
+        if cols_mes[0].button("Todos os Meses"):
+            st.session_state.mes_selecionado = "Todos os Meses"
+        
+        for i, mes in enumerate(meses_lista):
+            if cols_mes[i+1].button(mes):
+                st.session_state.mes_selecionado = mes
+
+        # Filtragem Final
+        if st.session_state.mes_selecionado != "Todos os Meses":
+            df = df[df['MES_ANO'] == st.session_state.mes_selecionado]
     
     if proc_sel != "-- Todos os Procedimentos --":
-        df = df[df['PROCEDIMENTO'] == proc_sel]
+        df = df[df['PROCEDIMENTO'] == proc_sel] [cite: 5]
 
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- INDICADORES ---
-    t_qtd = df['QUANTIDADE'].sum() if 'QUANTIDADE' in df.columns else 0
-    t_finan = df[col_finan].sum()
-    dias_ativos = df['DATA'].nunique() if 'DATA' in df.columns else 1
-    eficiencia = (t_qtd / (dias_ativos * 40)) if dias_ativos > 0 else 0
+    t_qtd = df['QUANTIDADE'].sum() if 'QUANTIDADE' in df.columns else 0 [cite: 6]
+    t_finan = df[col_finan].sum() [cite: 6]
+    dias_ativos = df['DATA'].nunique() if 'DATA' in df.columns else 1 [cite: 6]
+    eficiencia = (t_qtd / (dias_ativos * 40)) if dias_ativos > 0 else 0 [cite: 6]
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Total Atendimentos", f"{int(t_qtd)}")
-    m2.metric("Faturamento Bruto", f"R$ {t_finan:,.2f}")
-    m3.metric("Eficiência (Meta 40)", f"{eficiencia:.1%}")
+    m1, m2, m3 = st.columns(3) [cite: 6]
+    m1.metric("Total Atendimentos", f"{int(t_qtd)}") [cite: 6]
+    m2.metric("Faturamento Bruto", f"R$ {t_finan:,.2f}") [cite: 6]
+    m3.metric("Eficiência (Meta 40)", f"{eficiencia:.1%}") [cite: 6]
 
     st.divider()
 
-    # --- GRÁFICO TENDÊNCIA (Estilo Novo) ---
-    st.subheader("📈 Tendência de Atingimento de Meta Diária")
+    # --- GRÁFICO TENDÊNCIA ---
+    st.subheader("📈 Tendência de Atingimento de Meta Diária") [cite: 7]
     if 'DATA' in df.columns:
-        df_meta = df.groupby('DATA')['QUANTIDADE'].sum().reset_index().sort_values('DATA')
+        df_meta = df.groupby('DATA')['QUANTIDADE'].sum().reset_index().sort_values('DATA') [cite: 7]
         
         fig_meta = go.Figure()
 
-        # Realizado
+        # Realizado (Verde com preenchimento)
         fig_meta.add_trace(go.Scatter(
             x=df_meta['DATA'], 
             y=df_meta['QUANTIDADE'], 
             name='Realizado',
-            line=dict(color='#299947', width=4, shape='spline'), # Linha curva
+            line=dict(color='#299947', width=4, shape='spline'),
             fill='tozeroy',
             fillcolor='rgba(41, 153, 71, 0.1)',
             mode='lines+markers',
             marker=dict(size=8, color='white', line=dict(color='#299947', width=2))
         ))
 
-        # Meta
+        # Meta (Vermelha Tracejada)
         fig_meta.add_trace(go.Scatter(
             x=df_meta['DATA'], 
             y=[40]*len(df_meta), 
@@ -175,18 +186,18 @@ try:
             xaxis=dict(showgrid=False, tickangle=-45, tickformat="%d/%m/%Y"),
             yaxis=dict(showgrid=True, gridcolor='#eaeaea', range=[0, max(df_meta['QUANTIDADE'].max(), 50) + 10])
         )
-        st.plotly_chart(fig_meta, use_container_width=True)
+        st.plotly_chart(fig_meta, use_container_width=True) [cite: 7]
 
     # --- OUTROS GRÁFICOS ---
-    c1, c2 = st.columns(2)
+    c1, c2 = st.columns(2) [cite: 8]
     with c1:
-        st.subheader("🎓 Produção por Turma")
-        fig_turma = px.pie(df, values='QUANTIDADE', names='TURMA', hole=0.4, color_discrete_sequence=['#299947', '#a395a8', '#10b981'])
-        st.plotly_chart(fig_turma, use_container_width=True)
+        st.subheader("🎓 Produção por Turma") [cite: 8]
+        fig_turma = px.pie(df, values='QUANTIDADE', names='TURMA', hole=0.4, color_discrete_sequence=['#299947', '#a395a8', '#10b981']) [cite: 8]
+        st.plotly_chart(fig_turma, use_container_width=True) [cite: 8]
     with c2:
-        st.subheader("🏢 Distribuição por Clínica")
-        fig_cli = px.bar(df.groupby('CLINICA')['QUANTIDADE'].sum().reset_index(), x='CLINICA', y='QUANTIDADE', color_discrete_sequence=['#299947'])
-        st.plotly_chart(fig_cli, use_container_width=True)
+        st.subheader("🏢 Distribuição por Clínica") [cite: 8]
+        fig_cli = px.bar(df.groupby('CLINICA')['QUANTIDADE'].sum().reset_index(), x='CLINICA', y='QUANTIDADE', color_discrete_sequence=['#299947']) [cite: 8]
+        st.plotly_chart(fig_cli, use_container_width=True) [cite: 8]
 
 except Exception as e:
     st.error(f"Erro ao carregar dados: {e}")
