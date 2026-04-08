@@ -7,7 +7,7 @@ from datetime import datetime
 # 1. Configuração de Estilo e Layout
 st.set_page_config(page_title="FASICLIN - Gestão Premium", layout="wide")
 
-# Dicionário de tradução para meses (Garante português sem erro de locale)
+# Dicionário de tradução para meses (Garante português em qualquer servidor)
 MESES_TRADUCAO = {
     'January': 'Janeiro', 'February': 'Fevereiro', 'March': 'Março',
     'April': 'Abril', 'May': 'Maio', 'June': 'Junho',
@@ -47,7 +47,7 @@ st.markdown("""
     div[data-testid="stMetricValue"] > div { color: #299947 !important; font-weight: 600; }
     div[data-testid="stMetricLabel"] > div { color: #a395a8 !important; text-transform: uppercase; font-size: 0.8rem; }
     
-    /* Botões de Mês (Alinhamento à esquerda) */
+    /* Botões de Mês (Alinhamento à esquerda conforme imagem) */
     .stButton > button {
         border-radius: 20px;
         border: 1px solid #eaeaea;
@@ -91,7 +91,7 @@ try:
     with col_info:
         st.caption(f"Sincronizado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
-    # --- FILTROS (Alinhados à Esquerda) ---
+    # --- FILTROS ---
     st.markdown('<div class="filter-card">', unsafe_allow_html=True)
     
     c_label, c_select = st.columns([0.15, 0.85])
@@ -110,7 +110,7 @@ try:
         
         meses_lista = df[['MES_ANO', 'DATA']].dropna().sort_values('DATA')['MES_ANO'].unique().tolist()
         
-        # Alinhando botões à esquerda em colunas fixas
+        # Botões de data alinhados à esquerda (colunas pequenas)
         cols_btns = st.columns([0.15, 0.15, 0.15, 0.55])
         if "mes_selecionado" not in st.session_state:
             st.session_state.mes_selecionado = "Todos os Meses"
@@ -119,7 +119,7 @@ try:
             if st.button("Todos os Meses"): st.session_state.mes_selecionado = "Todos os Meses"
         
         for i, mes in enumerate(meses_lista):
-            if i < 2: # Exibe apenas os primeiros meses conforme imagem
+            if i < 2: 
                 with cols_btns[i+1]:
                     if st.button(mes): st.session_state.mes_selecionado = mes
 
@@ -150,7 +150,7 @@ try:
         fig_meta = go.Figure()
         fig_meta.add_trace(go.Scatter(
             x=df_meta['DATA'], y=df_meta['QUANTIDADE'], name='Realizado',
-            line=dict(color='#299947', width=4, shape='spline'), # Linha curva
+            line=dict(color='#299947', width=4, shape='spline'),
             fill='tozeroy', fillcolor='rgba(41, 153, 71, 0.1)', mode='lines+markers',
             marker=dict(size=8, color='white', line=dict(color='#299947', width=2))
         ))
@@ -163,4 +163,32 @@ try:
             legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
             xaxis=dict(showgrid=False, tickformat="%d/%m/%Y"), yaxis=dict(showgrid=True, gridcolor='#eaeaea')
         )
-        st.plotly_chart(fig_
+        st.plotly_chart(fig_meta, use_container_width=True)
+
+    # --- PRODUÇÃO E CLÍNICA ---
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("🎓 Produção por Turma")
+        fig_turma = px.pie(df, values='QUANTIDADE', names='TURMA', 
+                           color_discrete_sequence=['#299947', '#a395a8'])
+        fig_turma.update_layout(legend=dict(orientation="h", y=-0.1))
+        st.plotly_chart(fig_turma, use_container_width=True)
+
+    with c2:
+        st.subheader("🏢 Distribuição por Clínica")
+        fig_cli = px.pie(df, values='QUANTIDADE', names='CLINICA', hole=0.6,
+                         color_discrete_sequence=['#10b981', '#5f6368', '#f59e0b', '#ef4444'])
+        fig_cli.update_layout(legend=dict(orientation="h", y=-0.1))
+        st.plotly_chart(fig_cli, use_container_width=True)
+
+    # --- RANKING DE RECEITA POR PROCEDIMENTO ---
+    st.markdown("---")
+    st.subheader("📊 Ranking de Receita por Procedimento")
+    df_rank = df.groupby('PROCEDIMENTO').agg({col_finan: 'sum', 'QUANTIDADE': 'sum'}).reset_index()
+    df_rank = df_rank.sort_values(col_finan, ascending=True)
+    
+    fig_rank = px.bar(df_rank, y='PROCEDIMENTO', x=col_finan, orientation='h',
+                      text='QUANTIDADE', color_discrete_sequence=['#299947'])
+    fig_rank.update_traces(texttemplate='Qtd: %{text}', textposition='outside')
+    fig_rank.update_layout(xaxis_title="Valor Total (R$)", yaxis_title=None, height=500, margin=dict(l=200))
+    st.plotly_chart(
