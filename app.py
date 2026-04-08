@@ -196,7 +196,7 @@ try:
     with st.expander("🔍 Detalhamento dos Dados e Exportação"):
         st.dataframe(df, use_container_width=True)
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Baixar Relatório CSV", data=csv, file_name="relatorio_fasiclin.xlsx", mime="text/xlsx")
+        st.download_button("📥 Baixar Relatório xlsx", data=csv, file_name="relatorio_fasiclin.xlsx", mime="text/xlsx")
 
 except Exception as e:
     st.error(f"Erro ao carregar dados: {e}")
