@@ -191,4 +191,7 @@ try:
                       text='QUANTIDADE', color_discrete_sequence=['#299947'])
     fig_rank.update_traces(texttemplate='Qtd: %{text}', textposition='outside')
     fig_rank.update_layout(xaxis_title="Valor Total (R$)", yaxis_title=None, height=500, margin=dict(l=200))
-    st.plotly_chart(
+    st.plotly_chart(fig_rank, use_container_width=True)
+
+except Exception as e:
+    st.error(f"Erro ao carregar dados: {e}")
