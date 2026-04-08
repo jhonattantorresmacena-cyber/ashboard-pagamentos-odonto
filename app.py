@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import io
 
 # 1. Configuração de Estilo e Layout
 st.set_page_config(page_title="FASICLIN - Gestão Premium", layout="wide")
@@ -195,8 +196,33 @@ try:
  # --- TABELA DE DETALHES (Drill-down) ---
     with st.expander("🔍 Detalhamento dos Dados e Exportação"):
         st.dataframe(df, use_container_width=True)
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Baixar Relatório xlsx", data=csv, file_name="relatorio_fasiclin.xlsx", mime="text/xlsx")
+
+        st.subheader("📅 Produtividade por Dia da Semana")
+    if 'DATA' in df.columns:
+        df['DIA_SEMANA'] = df['DATA'].dt.day_name().map({
+            'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta',
+            'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
+        })
+        ordem_dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+        df_dia = df.groupby('DIA_SEMANA')['QUANTIDADE'].sum().reindex(ordem_dias).reset_index()
+        
+        fig_dia = px.bar(df_dia, x='DIA_SEMANA', y='QUANTIDADE', 
+                         color_discrete_sequence=['#a395a8'])
+        fig_dia.update_layout(xaxis_title=None, yaxis_title="Qtd Atendimentos", height=350)
+        st.plotly_chart(fig_dia, use_container_width=True)
+        
+        # Lógica para Excel Real
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Relatorio')
+            # Você pode adicionar formatação específica aqui se desejar
+            
+        st.download_button(
+            label="📥 Baixar Relatório Excel (.xlsx)",
+            data=buffer.getvalue(),
+            file_name=f"relatorio_fasiclin_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 except Exception as e:
     st.error(f"Erro ao carregar dados: {e}")
