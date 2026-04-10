@@ -54,7 +54,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. Carregamento de Dados
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1M2TGuEkzyOXgcxGK9ujYDknIgjvWlveHHsSpnvv5j4/export?format=csv&gid=1575732509"
+# No seu código, altere a variável SHEET_URL para o novo formato:
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1M2TGuEkzyOXgcxGK9ujYDknIgjvWlveHHsSpqnvv5j4/pub?gid=1575732509&output=csv"
 
 @st.cache_data(ttl=5)
 def load_data():
