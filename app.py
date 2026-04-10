@@ -109,7 +109,7 @@ try:
         cols_btns = st.columns([0.15, 0.15, 0.15, 0.55])
         
         # Lógica de botões com destaque de cor
-        opcoes_mes =["meses_lista"]
+        opcoes_mes = ["Todos os Meses"] + meses_lista[:12]
         for idx, opcao in enumerate(opcoes_mes):
             with cols_btns[idx]:
                 cor_btn = "#299947" if st.session_state.mes_selecionado == opcao else "white"
@@ -214,3 +214,4 @@ try:
 
 except Exception as e:
     st.error(f"Erro ao carregar dados: {e}")
+
