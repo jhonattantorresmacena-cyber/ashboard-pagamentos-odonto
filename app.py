@@ -103,16 +103,13 @@ try:
         df['MES_ANO'] = df['MES_TRADUZIDO'] + " de " + df['DATA'].dt.strftime('%Y')
         meses_lista = df[['MES_ANO', 'DATA']].dropna().sort_values('DATA')['MES_ANO'].unique().tolist()
         
-       # Ordenação cronológica correta dos meses
-        meses_lista = df[['MES_ANO', 'DATA']].dropna().sort_values('DATA')['MES_ANO'].unique().tolist()
-        
         if "mes_selecionado" not in st.session_state:
             st.session_state.mes_selecionado = "Todos os Meses"
 
-        opcoes_mes = ["Todos os Meses"] + meses_lista
+        cols_btns = st.columns([0.15, 0.15, 0.15, 0.55])
         
         # Lógica de botões com destaque de cor
-        opcoes_mes = ["Todos os Meses"] + meses_lista[:12]
+        opcoes_mes = ["Todos os Meses"] + meses_lista[:2]
         for idx, opcao in enumerate(opcoes_mes):
             with cols_btns[idx]:
                 cor_btn = "#299947" if st.session_state.mes_selecionado == opcao else "white"
