@@ -43,13 +43,9 @@ st.markdown("""
     div[data-testid="stMetricValue"] > div { color: #299947 !important; font-weight: 600; }
     div[data-testid="stMetricLabel"] > div { color: #a395a8 !important; text-transform: uppercase; font-size: 0.8rem; }
     
-    /* Botões de Mês - Estilo Base */
     .stButton > button {
         border-radius: 20px;
-        border: 1px solid #eaeaea;
-        background-color: white;
-        color: #5f6368;
-        padding: 5px 20px;
+        transition: all 0.3s ease;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -57,7 +53,7 @@ st.markdown("""
 # 2. Carregamento de Dados
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1M2TGuEkzyOXgcxGK9ujYDknIgjvWlveHHsSpqnvv5j4/export?format=csv&gid=1575732509"
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=60) # Aumentado para 60s para estabilidade, ajuste conforme necessário
 def load_data():
     df = pd.read_csv(SHEET_URL)
     df.columns = [c.strip().upper() for c in df.columns]
@@ -79,7 +75,6 @@ try:
         LOGO_URL = "https://raw.githubusercontent.com/jhonattantorresmacena-cyber/dashboard-fasiclin/main/assets/image_1.png"
         st.image(LOGO_URL, width=180)
     with col_info:
-        # Sincronização alinhada à direita
         st.markdown(f"""
             <div style='text-align: right; color: #a395a8; font-size: 0.9rem; margin-top: 15px;'>
                 <b>Sincronizado em:</b><br>{datetime.now().strftime('%d/%m/%Y às %H:%M')}
@@ -106,21 +101,20 @@ try:
         if "mes_selecionado" not in st.session_state:
             st.session_state.mes_selecionado = "Todos os Meses"
 
-        cols_btns = st.columns([0.15, 0.15, 0.15, 0.55])
+        opcoes_mes = ["Todos os Meses"] + meses_lista[:11] # Limite para não quebrar layout
+        cols_btns = st.columns(len(opcoes_mes))
         
-        # Lógica de botões com destaque de cor
-        opcoes_mes = ["Todos os Meses"] + meses_lista[:12]
         for idx, opcao in enumerate(opcoes_mes):
             with cols_btns[idx]:
-                cor_btn = "#299947" if st.session_state.mes_selecionado == opcao else "white"
-                texto_btn = "white" if st.session_state.mes_selecionado == opcao else "#5f6368"
-                border_btn = "#299947" if st.session_state.mes_selecionado == opcao else "#eaeaea"
+                is_active = st.session_state.mes_selecionado == opcao
+                cor_btn = "#299947" if is_active else "white"
+                texto_btn = "white" if is_active else "#5f6368"
+                border_btn = "#299947" if is_active else "#eaeaea"
                 
-                if st.button(opcao, key=f"btn_{opcao}"):
+                if st.button(opcao, key=f"btn_{opcao}", use_container_width=True):
                     st.session_state.mes_selecionado = opcao
                     st.rerun()
                 
-                # Injeção de estilo específica para o botão selecionado
                 st.markdown(f"""
                     <style>
                     div[data-testid="stHorizontalBlock"] > div:nth-child({idx+1}) button {{
@@ -142,18 +136,27 @@ try:
     t_qtd = df['QUANTIDADE'].sum() if 'QUANTIDADE' in df.columns else 0
     t_finan = df[col_finan].sum()
     dias_ativos = df['DATA'].nunique() if 'DATA' in df.columns else 1
-    eficiencia = (t_qtd / (dias_ativos * 40)) if dias_ativos > 0 else 0
+    
+    # Cálculo de Eficiência Refinado
+    meta_diaria = 40
+    eficiencia = (t_qtd / (dias_ativos * meta_diaria)) if dias_ativos > 0 else 0
+    delta_eficiencia = eficiencia - 1.0 # Comparação com 100% da meta
 
     m1, m2, m3 = st.columns(3)
     m1.metric("Total Atendimentos", f"{int(t_qtd)}")
     m2.metric("Faturamento Bruto", f"R$ {t_finan:,.2f}")
-    m3.metric("Eficiência (Meta 40)", f"{eficiencia:.1%}")
+    m3.metric(
+        "Eficiência (Meta 40/dia)", 
+        f"{eficiencia:.1%}", 
+        delta=f"{delta_eficiencia:.1%}",
+        delta_color="normal" if eficiencia >= 1 else "inverse"
+    )
 
     st.divider()
 
     # --- TENDÊNCIA E GRÁFICOS ---
     st.subheader("📈 Tendência de Atingimento de Meta Diária")
-    if 'DATA' in df.columns:
+    if 'DATA' in df.columns and not df.empty:
         df_meta = df.groupby('DATA')['QUANTIDADE'].sum().reset_index().sort_values('DATA')
         fig_meta = go.Figure()
         fig_meta.add_trace(go.Scatter(
@@ -162,23 +165,25 @@ try:
             fill='tozeroy', fillcolor='rgba(41, 153, 71, 0.1)', mode='lines+markers',
             marker=dict(size=8, color='white', line=dict(color='#299947', width=2))
         ))
-        fig_meta.add_trace(go.Scatter(x=df_meta['DATA'], y=[40]*len(df_meta), name='Meta', line=dict(color='#ff4d4d', width=2, dash='dash')))
+        fig_meta.add_trace(go.Scatter(x=df_meta['DATA'], y=[meta_diaria]*len(df_meta), name='Meta Diária', line=dict(color='#ff4d4d', width=2, dash='dash')))
         fig_meta.update_layout(height=350, hovermode="x unified", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=20))
         st.plotly_chart(fig_meta, use_container_width=True)
 
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("🎓 Produção por Turma")
-        fig_turma = px.pie(df, values='QUANTIDADE', names='TURMA', color_discrete_sequence=['#299947', '#a395a8'])
-        st.plotly_chart(fig_turma, use_container_width=True)
+        if not df.empty:
+            fig_turma = px.pie(df, values='QUANTIDADE', names='TURMA', color_discrete_sequence=['#299947', '#a395a8'])
+            st.plotly_chart(fig_turma, use_container_width=True)
     with c2:
         st.subheader("🏢 Distribuição por Clínica")
-        fig_cli = px.pie(df, values='QUANTIDADE', names='CLINICA', hole=0.6, color_discrete_sequence=['#10b981', '#5f6368', '#f59e0b', '#ef4444'])
-        st.plotly_chart(fig_cli, use_container_width=True)
+        if not df.empty:
+            fig_cli = px.pie(df, values='QUANTIDADE', names='CLINICA', hole=0.6, color_discrete_sequence=['#10b981', '#5f6368', '#f59e0b', '#ef4444'])
+            st.plotly_chart(fig_cli, use_container_width=True)
 
     # --- GRÁFICO DIA DA SEMANA ---
     st.subheader("📅 Produtividade por Dia da Semana")
-    if 'DATA' in df.columns:
+    if 'DATA' in df.columns and not df.empty:
         df['DIA_SEMANA'] = df['DATA'].dt.day_name().map({
             'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta',
             'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
@@ -191,16 +196,14 @@ try:
         fig_dia.update_layout(xaxis_title=None, yaxis_title="Qtd Atendimentos", height=350, margin=dict(t=30))
         st.plotly_chart(fig_dia, use_container_width=True)
 
-    # --- EXPANDER DE EXPORTAÇÃO (ABAIXO DOS GRÁFICOS) ---
+    # --- EXPANDER DE EXPORTAÇÃO ---
     with st.expander("🔍 Detalhamento dos Dados e Exportação"):
-        # Formatação de data para visualização e Excel
         df_view = df.copy()
         if 'DATA' in df_view.columns:
             df_view['DATA'] = df_view['DATA'].dt.strftime('%d/%m/%Y')
         
         st.dataframe(df_view, use_container_width=True)
         
-        # Download Excel
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_view.to_excel(writer, index=False, sheet_name='Relatorio')
@@ -213,5 +216,4 @@ try:
         )
 
 except Exception as e:
-    st.error(f"Erro ao carregar dados: {e}")
-
+    st.error(f"Ocorreu um erro ao processar o dashboard: {e}")
