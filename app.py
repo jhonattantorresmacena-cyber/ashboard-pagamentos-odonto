@@ -196,6 +196,38 @@ try:
         fig_dia.update_layout(xaxis_title=None, yaxis_title="Qtd Atendimentos", height=350, margin=dict(t=30))
         st.plotly_chart(fig_dia, use_container_width=True)
 
+    # --- NOVO: RANKING DE PROCEDIMENTOS ---
+    st.subheader("🏆 Ranking de Procedimentos (Top 10)")
+    if not df.empty:
+        # Agrupando e pegando os 10 principais
+        df_rank = df.groupby('PROCEDIMENTO')['QUANTIDADE'].sum().reset_index()
+        df_rank = df_rank.sort_values('QUANTIDADE', ascending=True).tail(10) # Ascending=True para o gráfico de barras horizontais ficar correto
+        
+        fig_rank = px.bar(
+            df_rank, 
+            y='PROCEDIMENTO', 
+            x='QUANTIDADE', 
+            orientation='h',
+            color='QUANTIDADE',
+            color_continuous_scale='Greens',
+            text_auto=True
+        )
+        
+        fig_rank.update_traces(textposition='outside', textfont=dict(weight='bold'))
+        fig_rank.update_layout(
+            xaxis_title="Quantidade Total",
+            yaxis_title=None,
+            height=450,
+            margin=dict(l=20, r=20, t=20, b=20),
+            coloraxis_showscale=False # Esconde a barra de legenda lateral para um visual mais limpo
+        )
+        st.plotly_chart(fig_rank, use_container_width=True)
+
+    # --- TENDÊNCIA E GRÁFICOS (Restante do código continua abaixo) ---
+    st.divider()
+    st.subheader("📈 Tendência de Atingimento de Meta Diária")
+    # ... o restante do seu código segue aqui ...
+
     # --- EXPANDER DE EXPORTAÇÃO ---
     with st.expander("🔍 Detalhamento dos Dados e Exportação"):
         df_view = df.copy()
